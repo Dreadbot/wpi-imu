@@ -409,7 +409,7 @@ namespace dreadbot {
 			MPU6050();
 			MPU6050(uint8_t address);
 
-			void initialize();
+			void initialize(uint8_t accel_range = MPU6050_ACCEL_FS_2, uint8_t gyro_range = MPU6050_GYRO_FS_250);
 			bool testConnection();
 
 			// AUX_VDDIO register

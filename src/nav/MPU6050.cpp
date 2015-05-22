@@ -6,35 +6,13 @@
 // Changelog:
 //     ... - ongoing debug release
 
-// NOTE: THIS IS ONLY A PARIAL RELEASE. THIS DEVICE CLASS IS CURRENTLY UNDERGOING ACTIVE
-// DEVELOPMENT AND IS STILL MISSING SOME IMPORTANT FEATURES. PLEASE KEEP THIS IN MIND IF
-// YOU DECIDE TO USE THIS PARTICULAR CODE FOR ANYTHING.
-
 /* ============================================
 I2Cdev device library code is placed under the MIT license
 Copyright (c) 2012 Jeff Rowberg
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-===============================================
+See license.txt for licensing details.
 */
 
-#include <MPU6050.h>
+#include "MPU6050.h"
 
 namespace dreadbot {
 /** Default constructor, uses default I2C address.
@@ -56,12 +34,10 @@ MPU6050::MPU6050(uint8_t address) {
 
 /** Power on and prepare for general usage.
  * This will activate the device and take it out of sleep mode (which must be done
- * after start-up). This function also sets both the accelerometer and the gyroscope
- * to their most sensitive settings, namely +/- 2g and +/- 250 degrees/sec, and sets
- * the clock source to use the X Gyro for reference, which is slightly better than
- * the default internal clock source.
+ * after start-up). Also sets the clock source to use the X Gyro for reference,
+ * which is slightly better than the default internal clock source.
  */
-void MPU6050::initialize(uint8_t accel_range = MPU6050_ACCEL_FS_2, uint8_t gyro_range = MPU6050_GYRO_FS_250) {
+void MPU6050::initialize(uint8_t accel_range, uint8_t gyro_range) {
 	I2Cdev::initialize();
 	setClockSource(MPU6050_CLOCK_PLL_XGYRO);
 	setFullScaleGyroRange(accel_range);

@@ -5,59 +5,53 @@
 namespace dreadbot {
 	class Robot: public IterativeRobot {
 	private:
-		DriverStation *ds;
-		Joystick* driverStick;
+		DriverStation *driverStation;
+		Joystick* driveController;
 		PowerDistributionPanel* pdp;
-		MecanumDrive* drivebase;
-
 		MPU6050* IMU;
-
 
 	public:
 		void RobotInit() {
-			ds = DriverStation::GetInstance();
+			driverStation = DriverStation::GetInstance();
 			SmartDashboard::init();
+			Hardware::init();
 			pdp = new PowerDistributionPanel();
-			drivebase = new MecanumDrive(1, 2, 3, 4);
+
 			IMU = new MPU6050();
-			driveStick = new Joystick(COM_PRIMARY_DRIVER);
+			driveController = new Joystick(COM_PRIMARY_DRIVER);
 			//DreadNav::Initialze();
 		}
 
 
 		void AutonomousInit() {
-			Drivebase->Engage();
+			Hardware::drivebase->Engage();
 		}
 
 		void AutonomousPeriodic() { }
 
 
 		void TeleopInit() {
-			Drivebase->Engage();
-			DreadNav::Start();
+			Hardware::drivebase->Engage();
+			//DreadNav::Start();
 		}
 
 		void TeleopPeriodic() {
-			int16_t acc[3] = {0, 0, 0};
-			int16_t gyr[3] = {0, 0, 0};
-			int16_t mag[3] = {0, 0, 0};
+			imuOut<int16_t> rawOut;
 
 			IMU->getMotion9(
-				acc, acc + 1, acc + 2, 
-				gyr, gyr + 1, gyr + 2, 
-				mag, mag + 1, mag + 2
+				rawOut.acc, rawOut.acc + 1, rawOut.acc + 2,
+				rawOut.gyr, rawOut.gyr + 1, rawOut.gyr + 2,
+				rawOut.mag, rawOut.mag + 1, rawOut.mag + 2
 			);
 			
-			SmartDashboard::PutNumber("mpu/acc", ax);
-			SmartDashboard::PutNumber("mpu/gyr", ax);
-			SmartDashboard::PutNumber("mpu/mag", ax);
+			SmartDashboard::PutString("MPU out", rawOut.toString());
 
-			//drivebase->SD_OutputDiagnostics();
-			float driveX = DRIVE_MULT_STR*CurveInput(driverStick->GetRawAxis(AXS_DRIVE_X));
-			float driveY = DRIVE_MULT_FWD*CurveInput(driverStick->GetRawAxis(AXS_DRIVE_Y));
-			float driveR = DRIVE_MULT_ROT*CurveInput(driverStick->GetRawAxis(AXS_DRIVE_R));
+			Hardware::drivebase->SD_OutputDiagnostics();
+			float driveX = DRIVE_MULT_STR*CurveInput(driveController->GetRawAxis(AXIS_DRIVE_X));
+			float driveY = DRIVE_MULT_FWD*CurveInput(driveController->GetRawAxis(AXIS_DRIVE_Y));
+			float driveR = DRIVE_MULT_ROT*CurveInput(driveController->GetRawAxis(AXIS_DRIVE_R));
 			
-			drivebase->Drive(driveX, driveY, driveR);
+			Hardware::drivebase->Drive_v(driveX, driveY, driveR);
 		}
 
 
@@ -67,20 +61,20 @@ namespace dreadbot {
 
 
 		void DisabledInit() {
-			drivebase->Disengage();
+			Hardware::drivebase->Disengage();
 		}
 
 		void DisabledPeriodic() {}
 
 
-		static float CurveInput(float x) {
-			float y = 0.255000975f*std::exp2(2.299113817f*std::fabs(x));
-			// coefficients are calculated to imitate the slope of a square function at x=1 with 
-			/// ie. solve for a & b where 1=a*e^b & 2=a*e^(b)/b
-			if (std::fabs(x) < DRIVER_DEADZONE)
+		static float CurveInput(float input) {
+			// This form was selected for its ease of use, ideal endpoint slopes, and computational cheapness.
+			float output = 0.255000975f * (std::exp2(2.299113817f * std::fabs(input)) - 1.f);
+			// to adjust the curvature distribution, recompute A and B in A*(2^(B*X)-1) so that it fits the full output range
+			if (std::fabs(input) < DRIVER_DEADZONE)
 				return 0.0f;
 			else
-				return x < 0.0f ? -y : y;
+				return std::copysign(output, input);
 		}
 	};
 }

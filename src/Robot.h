@@ -3,9 +3,9 @@
 #pragma once
 
 #include <WPILib.h>
-#include "MecanumDrive.h"
-#include "MPU6050.h"
-#include "DreadNav.h"
+#include "Hardware.h"
+#include "nav/MPU6050.h"
+#include "nav/DreadNav.h"
 
 // Drive constants
 #define DRIVE_MULT_FWD 0.7f

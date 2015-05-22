@@ -2,8 +2,7 @@
 
 #include <cmath>
 #include <string>
-#include <functional>
-#include "WPILib.h"
+#include <WPILib.h>
 #include "MPU6050.h"
 
 
@@ -11,7 +10,12 @@
 #define GYRO_LS_SCALE 	MPU6050_GYRO_FS_250
 #define OUTPUT_IMU_DATA
 
+
 namespace dreadbot {
+
+	static std::string channelNames_acc[3] = {"acc-X", "acc-Y", "acc-Z"};
+	static std::string channelNames_gyr[3] = {"gyr-X", "gyr-Y", "gyr-Z"};
+	static std::string channelNames_mag[3] = {"mag-X", "mag-Y", "mag-Z"};
 
 	template <typename T>
 	struct imuOut {
@@ -54,14 +58,14 @@ namespace dreadbot {
 		// Initialize the hardware and data structures.
 		static void Initialize() {
 			if (!isReady) {
-				integrationLoop = new Notifier(CallTracker, this);
-				integrationLoop->StartPeriodic(0.01);
+				trackingLoop = new Notifier(DreadNav::CallTracker);
+				trackingLoop->StartPeriodic(0.01);
 				loopTimer = new Timer();
-				IMU = new MPU6050(ACCEL_LS_SCALE, GYRO_LS_SCALE);
-				IMU->initialize();
+				IMU = new MPU6050();
+				IMU->initialize((uint8_t) ACCEL_LS_SCALE, (uint8_t) GYRO_LS_SCALE);
 				#ifdef OUTPUT_IMU_DATA
 					SmartDashboard::PutString("MPU-9150", currentData->toString());
-					SmartDashboard::PutBoolean("nav-active", false)
+					SmartDashboard::PutBoolean("nav-active", false);
 					SmartDashboard::PutNumber("mpu-device-id", IMU->getDeviceID());
 					SmartDashboard::PutBoolean("mpu-connection", IMU->testConnection());
 				#endif // OUTPUT_IMU_DATA
@@ -77,7 +81,7 @@ namespace dreadbot {
 				currentData->reset();
 				#ifdef OUTPUT_IMU_DATA
 					SmartDashboard::PutString("MPU-9150", currentData->toString());
-					SmartDashboard::PutBoolean("nav-active", true)
+					SmartDashboard::PutBoolean("nav-active", true);
 				#endif // OUTPUT_IMU_DATA
 			}
 		}
@@ -90,7 +94,7 @@ namespace dreadbot {
 				currentData->reset();
 				#ifdef OUTPUT_IMU_DATA
 					SmartDashboard::PutString("MPU-9150", currentData->toString());
-					SmartDashboard::PutBoolean("nav-active", false)
+					SmartDashboard::PutBoolean("nav-active", false);
 				#endif // OUTPUT_IMU_DATA
 			}
 		}
@@ -109,14 +113,14 @@ namespace dreadbot {
 	private:
 		static void RunCalculations() {
 			if (isRunning) {
-				double dt = loopTimer->Get();
+				//double dt = loopTimer->Get();
 				loopTimer->Reset();
 				loopTimer->Start();
 
 				float fFactor;
 
-				imuOut<int16_t> rawOut();
-				imuOut<float> prcOut();
+				imuOut<int16_t> rawOut;
+				imuOut<float> prcOut;
 
 				IMU->getMotion9(
 					rawOut.acc, rawOut.acc + 1, rawOut.acc + 2, 
@@ -129,7 +133,7 @@ namespace dreadbot {
 				// range if something goes wrong.
 
 				// Process raw accelerometer data
-				switch (IMU->getFullScaleAccelRange()) {
+				/* switch (IMU->getFullScaleAccelRange()) {
 					case MPU6050_ACCEL_FS_2:
 						fFactor = g_fMPU9150AccFactors[0];
 						break;
@@ -145,13 +149,15 @@ namespace dreadbot {
 					default:
 						fFactor = g_fMPU9150AccFactors[ACCEL_LS_SCALE];
 						break;
-				}
+				} */
+
+				fFactor = g_fMPU9150AccFactors[IMU->getFullScaleAccelRange()];
 				prcOut.acc[0] = (float) rawOut.acc[0]*fFactor;
 				prcOut.acc[1] = (float) rawOut.acc[1]*fFactor;
 				prcOut.acc[2] = (float) rawOut.acc[2]*fFactor;
 
 				// Process raw data from gyro
-				switch (IMU->getFullScaleGyroRange()) {
+				/* switch (IMU->getFullScaleGyroRange()) {
 					case MPU6050_GYRO_FS_250:
 						fFactor = g_fMPU9150GyroFactors[3];
 						break;
@@ -167,8 +173,9 @@ namespace dreadbot {
 					default:
 						fFactor = g_fMPU9150GyroFactors[MPU6050_GYRO_FS_250];
 						break;
-				}
-				// alternatively: g_fMPU9150GyroFactors[IMU->getFullScaleGyroRange()]
+				} */
+
+				fFactor = g_fMPU9150GyroFactors[IMU->getFullScaleGyroRange()];
 				prcOut.gyr[0] = (float) rawOut.gyr[0]*fFactor;
 				prcOut.gyr[1] = (float) rawOut.gyr[1]*fFactor;
 				prcOut.gyr[2] = (float) rawOut.gyr[2]*fFactor;
@@ -181,22 +188,17 @@ namespace dreadbot {
 
 				#ifdef OUTPUT_IMU_DATA
 					SmartDashboard::PutString("MPU-9150", currentData->toString());
-					SmartDashboard::PutBoolean("nav-active", false)
+					SmartDashboard::PutBoolean("nav-active", false);
 				#endif // OUTPUT_IMU_DATA
 			}
 		}
 
-		static void CallTracker() {
+		static void CallTracker(void*) {
 			DreadNav::RunCalculations();
 		}
 
-
-		static constexpr std::string channelNames_acc[3] = {"acc-X", "acc-Y", "acc-Z"};
-		static constexpr std::string channelNames_gyr[3] = {"gyr-X", "gyr-Y", "gyr-Z"};
-		static constexpr std::string channelNames_mag[3] = {"mag-X", "mag-Y", "mag-Z"};
-
 		// Convert raw ouput from MPU-9150 accelerometer into m/s^2
-		static const float g_fMPU9150AccFactors[] = { 
+		static constexpr float g_fMPU9150AccFactors[] = {
 			0.0005985482f,     // Range = +/- 2 g (16384 lsb/g)
 			0.0011970964f,     // Range = +/- 4 g (8192 lsb/g)
 			0.0023941928f,     // Range = +/- 8 g (4096 lsb/g)
@@ -204,7 +206,7 @@ namespace dreadbot {
 		};
 
 		// Convert raw ouput from MPU-9150 gyroscope into rad/s
-		static const float g_fMPU9150GyroFactors[] = { 
+		static constexpr float g_fMPU9150GyroFactors[] = {
 			1.3323124e-4f,     // Range = +/- 250 dps (131.0)
 			2.6646248e-4f,     // Range = +/- 500 dps (65.5)
 			5.3211258e-4f,     // Range = +/- 1000 dps (32.8)
@@ -212,10 +214,10 @@ namespace dreadbot {
 		};
 
 		// Convert raw ouput from MPU-9150 compass to uT
-		static const float g_fMPU9150MagFactor = 0.3f;
+		static constexpr float g_fMPU9150MagFactor = 0.3f;
 
-		static bool isReady = false;
-		static bool isRunning = false;
+		static bool isReady;
+		static bool isRunning;
 
 		static imuOut<float>* currentData;
 		static Timer* loopTimer;
@@ -223,7 +225,8 @@ namespace dreadbot {
 		static MPU6050* IMU;
 	};
 
-	bool DreadNav::isRunning;
+	bool DreadNav::isReady = false;
+	bool DreadNav::isRunning = false;
 	imuOut<float>* DreadNav::currentData;
 	Timer* DreadNav::loopTimer;
 	Notifier* DreadNav::trackingLoop;
